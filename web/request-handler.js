@@ -16,11 +16,8 @@ exports.handleRequest = function (request, response) {
     //Render the home page (index.html)
     helpers.serveAssets(response, 'index.html');
 
-  //Otherwise send 404 error
+  //Otherwise tries to serve cached site
   } else {
-    response.writeHead(404, {"Content-Type": "text/plain"});
-    response.write("404 Not Found\n");
-    response.end();
-    return;
+    helpers.serveCachedSites(response, uri.substr(1));
   }
 };

@@ -14,9 +14,18 @@ exports.headers = headers = {
 exports.serveAssets = function(response, asset) {
   //Only serves assets in 'public' directory
   var filename = archive.paths.siteAssets + '/' + asset;
+  serveFile(response, filename);
+};
+
+exports.serveCachedSites = function(response, siteName) {
+  var siteName = archive.paths.archivedSites + '/' + siteName;
+  serveFile(response, siteName);
+};
+
+var serveFile = function(response, filename) {
 
   //Checks whether the asset passed has a valid path
-  path.exists(filename, function(exists) {
+  fs.exists(filename, function(exists) {
     //If not, 404
     if(!exists) {
       response.writeHead(404, {'Content-Type': 'text/plain'});
@@ -40,5 +49,7 @@ exports.serveAssets = function(response, asset) {
     });
   });
 };
+
+
 
 // As you progress, keep thinking about what helper functions you can put here!
