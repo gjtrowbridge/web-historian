@@ -2,6 +2,19 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
 var httpRequest = require('http-request');
+var mysql      = require('mysql');
+var connection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  database: 'webHistorianDb'
+});
+connection.connect();
+// connection.query('select * from sites', function(err, rows, fields) {
+//   if (err) throw err;
+
+//   console.log('There are: ' + rows.length + ' records.');
+//   console.log('The solution is: ', rows[0]);
+// });
 
 /*
  * You will need to reuse the same paths many times over in the course of this sprint.
@@ -25,10 +38,19 @@ exports.initialize = function(pathsObj){
 
 // The following function names are provided to you to suggest how you might
 // modularize your code. Keep it clean!
+//
+exports.readTableRows = function(cb) {
+  connection.query('select * from sites', function(err, rows) {
+    if (err) throw error;
+    cb(rows);
+  });
+};
 
 exports.readListOfUrls = function(cb){
-  fs.readFile(exports.paths.list, function(err, text) {
-    var urls = text.toString().split('\n');
+  exports.readTableRows(function(rows) {
+    var urls = _.map(rows, function(row) {
+      return row.url;
+    });
     cb(urls);
   });
 };
@@ -48,32 +70,56 @@ exports.isUrlInList = function(url, cb){
 exports.addUrlToList = function(url) {
   exports.isUrlInList(url, function(inList) {
     if (!inList) {
-      fs.appendFile(exports.paths.list, url);
+      connection.query('insert into sites (url) values (\'' + url + '\')');
     }
   });
 };
 
 exports.isUrlArchived = function(url, cb) {
-  var filename = exports.paths.archivedSites + '/' + url;
-  fs.exists(filename, function(exists) {
-    cb(exists);
+  exports.readTableRows(function(rows) {
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].cachedSite === null && rows[i].url === url) {
+        cb(true);
+        return;
+      }
+    }
+    cb(false);
   });
 };
 
-exports.downloadUrls = function(urls){
-  _.each(urls, function(url) {
-    exports.isUrlArchived(url, function(archived) {
-      if (!archived) {
-        httpRequest.get(url, function(error, response) {
+exports.downloadAllUrls = function() {
+  exports.readTableRows(function(rows) {
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (row.cachedSite === null) {
+        httpRequest.get(row.url, function(error, response) {
           if (error) {
             console.log("Error");
             return;
           } else {
-            var filename = exports.paths.archivedSites + '/' + url;
-            fs.writeFile(filename, response.buffer.toString());
+            connection.query('update sites set cachedSite=\'' + response.buffer.toString() + '\' where id=' + row.id);
           }
         });
       }
-    });
+    }
   });
 };
+
+
+// exports.downloadUrls = function(urls){
+//   _.each(urls, function(url) {
+//     exports.isUrlArchived(url, function(archived) {
+//       if (!archived) {
+        // httpRequest.get(url, function(error, response) {
+        //   if (error) {
+        //     console.log("Error");
+        //     return;
+        //   } else {
+        //     var filename = exports.paths.archivedSites + '/' + url;
+        //     fs.writeFile(filename, response.buffer.toString());
+        //   }
+        // });
+//       }
+//     });
+//   });
+// };
